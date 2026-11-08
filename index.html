@@ -9,6 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#12233f">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--bg:#f4f5f7;--card:#fff;--ink:#12233f;--mut:#667085;--line:#dde1e8;--acc:#12233f;--onacc:#fff;--gold:#b7791f;--ok:#2f855a;--warn:#c05621;
 box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -47,15 +48,21 @@ svg{width:100%;height:auto;display:block}
 .item.ok{background:rgba(47,133,90,.22);border-radius:10px;padding:9px 10px;border-bottom:0;margin:3px 0}
 .tag{font-size:.75rem;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--mut)}.tag.sim{background:var(--gold);border-color:var(--gold);color:#fff}
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.stats div{background:var(--bg);border-radius:9px;padding:8px}.stats b{display:block;font-size:1.1rem}
+
+.cloudbar{margin-bottom:12px}.cloudbar .mut{font-size:.82rem}.cloudstatus{display:flex;align-items:center;gap:7px;font-size:.86rem}.cloud-dot{width:9px;height:9px;border-radius:50%;background:#c05621;display:inline-block}.cloud-dot.ok{background:#2f855a}.authgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.authgrid button{width:100%}.smallnote{font-size:.8rem;color:var(--mut);margin-top:8px}
 </style>
 </head>
 <body>
 <main id="app"></main>
 <nav id="nav"></nav>
 <script>
-const KEY='agendaCNP.v1',IV=[1,3,7,15,30],TABS=['Hoy','Temario','Simulacros','Físicas','Entrenos','Ajustes'];
+const KEY='agendaCNP.v1',DIRTY='agendaCNP.cloudDirty.v1',IV=[1,3,7,15,30],TABS=['Hoy','Temario','Simulacros','Físicas','Entrenos','Ajustes'];
 let S={fecha:'',bloques:[{id:'b1',n:'Ciencias jurídicas'},{id:'b2',n:'Ciencias sociales'},{id:'b3',n:'Técnico-científicas'}],temas:[],sims:[],horas:{},fis:[],pruebas:[{id:'p1',n:'Circuito de agilidad',t:'time',obj:null},{id:'p2',n:'Carrera 1000 m',t:'time',obj:null},{id:'p3',n:'Dominadas',t:'rep',obj:null}],entr:[]};
-let tab=0,fp=null;
+let tab=0,fp=null,cloudClient=null,cloudUser=null,cloudBusy=false,syncAfterBusy=false,syncTimer=null,syncState='offline',syncMessage='Sin configurar';
+const SUPABASE_URL='https://jtgdzxnzwfmdbdqhuebv.supabase.co/rest/v1/';
+const SUPABASE_ANON_KEY='sb_publishable_chB5Jtt_3vEsZOh4zgGPag_YRhQVc1g';
+const cloudConfigured=()=>window.supabase&&SUPABASE_URL.startsWith('https://')&&!SUPABASE_URL.includes('TU-PROYECTO')&&SUPABASE_ANON_KEY.length>30&&!SUPABASE_ANON_KEY.includes('PEGA_AQUI');
+if(cloudConfigured())cloudClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 try{const r=localStorage.getItem(KEY);if(r)S=Object.assign(S,JSON.parse(r))}catch(e){}
 if(!S.entr)S.entr=[];
 if(!S.sexo)S.sexo='H';
@@ -63,7 +70,15 @@ if(!S.escala)S.escala='ba';
 S.pruebas.forEach(p=>{const m={p1:'ag',p2:'ca',p3:'fu'};if(m[p.id]&&!p.bk)p.bk=m[p.id]});
 {const used=id=>S.fis.some(r=>r.p===id);S.pruebas.forEach(p=>{if(p.id==='p3'&&p.n==='Flexiones'&&!used('p3'))p.n='Dominadas'});S.pruebas=S.pruebas.filter(p=>!(p.id==='p4'&&p.n==='Natación 50 m'&&!used('p4')))}
 let eo=null;
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S));localStorage.setItem(DIRTY,'1')}catch(e){syncMessage='No se pudo guardar en este dispositivo'};scheduleSync()};
+function scheduleSync(){if(!cloudClient||!cloudUser||!navigator.onLine)return;if(cloudBusy){syncAfterBusy=true;return}clearTimeout(syncTimer);syncState='pending';syncMessage='Cambios pendientes de sincronizar';syncTimer=setTimeout(syncCloud,1200)}
+async function syncCloud(){if(!cloudClient||!cloudUser||!navigator.onLine||cloudBusy)return;cloudBusy=true;syncState='syncing';syncMessage='Sincronizando…';renderCloudStatus();try{const {error}=await cloudClient.from('agenda_data').upsert({user_id:cloudUser.id,payload:S,updated_at:new Date().toISOString()},{onConflict:'user_id'});if(error)throw error;localStorage.removeItem(DIRTY);syncState='ok';syncMessage='Todo sincronizado'}catch(e){syncState='error';syncMessage='No se pudo sincronizar. Se conserva la copia local.';console.error('Agenda CNP sync:',e)}finally{cloudBusy=false;renderCloudStatus();if(syncAfterBusy){syncAfterBusy=false;scheduleSync()}}}
+function renderCloudStatus(){const el=document.getElementById('cloud-status');if(!el)return;const online=navigator.onLine;el.innerHTML=`<span class="cloud-dot ${syncState==='ok'&&online?'ok':''}"></span><span>${esc(!online?'Sin conexión · se guardará en este dispositivo':syncMessage)}</span>`}
+async function authAction(mode){if(!cloudClient){alert('Primero configura la URL y la clave pública de Supabase en el archivo index.html.');return}const email=$('#auth-email')?.value.trim(),password=$('#auth-password')?.value;if(!email||!password){alert('Introduce tu correo y una contraseña.');return}const btn=$('#auth-action');if(btn)btn.disabled=true;try{const result=mode==='signup'?await cloudClient.auth.signUp({email,password}):await cloudClient.auth.signInWithPassword({email,password});if(result.error)throw result.error;if(mode==='signup'&&!result.data.session){alert('Cuenta creada. Revisa tu correo para confirmar la dirección y después inicia sesión.');return}await onAuthenticated(result.data.session?.user)}catch(e){alert('No se pudo completar el acceso: '+(e.message||e))}finally{if(btn)btn.disabled=false}}
+async function onAuthenticated(user){if(!user)return;cloudUser=user;try{const {data,error}=await cloudClient.from('agenda_data').select('payload,updated_at').eq('user_id',user.id).maybeSingle();if(error)throw error;const dirty=localStorage.getItem(DIRTY)==='1';if(data?.payload){if(dirty){if(confirm('Hay cambios locales y ya existe una copia en la nube. ¿Quieres subir los datos de ESTE dispositivo y sustituir la copia en la nube? Pulsa Cancelar para descargar la copia de la nube.'))await syncCloud();else{S=Object.assign(S,data.payload);localStorage.setItem(KEY,JSON.stringify(S));localStorage.removeItem(DIRTY);syncState='ok';syncMessage='Datos descargados de la nube'}}else{S=Object.assign(S,data.payload);localStorage.setItem(KEY,JSON.stringify(S));syncState='ok';syncMessage='Datos descargados de la nube'}}else{localStorage.setItem(DIRTY,'1');await syncCloud()}}catch(e){syncState='error';syncMessage='Error al cargar la nube; tus datos locales siguen disponibles';console.error(e)}render()}
+async function logoutCloud(){if(!cloudClient)return;await cloudClient.auth.signOut();cloudUser=null;syncState='offline';syncMessage='Sesión cerrada';render()}
+function cloudPanel(){const configured=!!cloudClient;return `<div class="card cloudbar"><div class="cloudstatus" id="cloud-status"><span class="cloud-dot"></span><span>${esc(!configured?'Pendiente de configurar Supabase':cloudUser?'Conectado · '+cloudUser.email: 'Inicia sesión para activar la sincronización')}</span></div>${!configured?`<p class="smallnote">Para activar la nube, pega la URL del proyecto y la clave anon/publicable en las dos constantes SUPABASE_URL y SUPABASE_ANON_KEY del archivo index.html. Después crea la tabla con el SQL incluido en la entrega.</p>`:cloudUser?`<div class="row" style="margin-top:10px"><button class="sm" onclick="syncCloud()">Sincronizar ahora</button><button class="sm ghost" onclick="logoutCloud()">Cerrar sesión</button></div>`:`<input id="auth-email" type="email" autocomplete="username" placeholder="Tu correo electrónico"><input id="auth-password" type="password" autocomplete="current-password" placeholder="Contraseña (mínimo 8 caracteres)"><div class="authgrid"><button id="auth-action" onclick="authAction('login')">Iniciar sesión</button><button class="ghost" onclick="authAction('signup')">Crear mi cuenta</button></div><p class="smallnote">La cuenta es privada. No compartas tus credenciales. Si activas confirmación por correo en Supabase, confirma primero tu dirección.</p>`}</div>`}
+window.addEventListener('online',()=>{if(cloudUser)scheduleSync();else{syncState='pending';syncMessage='Conexión recuperada'}});window.addEventListener('offline',()=>{syncState='offline';syncMessage='Sin conexión';renderCloudStatus()});
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const iso=d=>d.toLocaleDateString('sv-SE');
@@ -250,10 +265,12 @@ function exp(kind){let txt,type,name='agenda-cnp-'+today();
 function imp(f){if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.temas||!d.sims)throw 0;S=Object.assign(S,d);save();render();alert('Copia importada')}catch(e){alert('El archivo no es una copia válida de la agenda')}};r.readAsText(f)}
 
 function render(){
- $('#app').innerHTML=[viewHoy,viewTemario,viewSims,viewFis,viewEntr,viewAjustes][tab]();
+ $('#app').innerHTML=cloudPanel()+[viewHoy,viewTemario,viewSims,viewFis,viewEntr,viewAjustes][tab]();
+ renderCloudStatus();
  $('#nav').innerHTML=TABS.map((n,i)=>`<button class="${i===tab?'on':''}" onclick="tab=${i};render();scrollTo(0,0)">${n}</button>`).join('');
 }
 render();
+if(cloudClient){cloudClient.auth.getSession().then(({data})=>{if(data.session)onAuthenticated(data.session.user)});cloudClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){cloudUser=null;render()}else if(event==='SIGNED_IN'&&session?.user&&!cloudUser)onAuthenticated(session.user)})}
 </script>
 <script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));</script>
 </body>
