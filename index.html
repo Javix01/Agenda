@@ -59,7 +59,7 @@ svg{width:100%;height:auto;display:block}
 const KEY='agendaCNP.v1',DIRTY='agendaCNP.cloudDirty.v1',IV=[1,3,7,15,30],TABS=['Hoy','Temario','Simulacros','Físicas','Entrenos','Ajustes'];
 let S={fecha:'',bloques:[{id:'b1',n:'Ciencias jurídicas'},{id:'b2',n:'Ciencias sociales'},{id:'b3',n:'Técnico-científicas'}],temas:[],sims:[],horas:{},fis:[],pruebas:[{id:'p1',n:'Circuito de agilidad',t:'time',obj:null},{id:'p2',n:'Carrera 1000 m',t:'time',obj:null},{id:'p3',n:'Dominadas',t:'rep',obj:null}],entr:[]};
 let tab=0,fp=null,cloudClient=null,cloudUser=null,cloudBusy=false,syncAfterBusy=false,syncTimer=null,syncState='offline',syncMessage='Sin configurar';
-const SUPABASE_URL='https://jtgdzxnzwfmdbdqhuebv.supabase.co/rest/v1/';
+const SUPABASE_URL='https://jtgdzxnzwfmdbdqhuebv.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_chB5Jtt_3vEsZOh4zgGPag_YRhQVc1g';
 const cloudConfigured=()=>window.supabase&&SUPABASE_URL.startsWith('https://')&&!SUPABASE_URL.includes('TU-PROYECTO')&&SUPABASE_ANON_KEY.length>30&&!SUPABASE_ANON_KEY.includes('PEGA_AQUI');
 if(cloudConfigured())cloudClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
