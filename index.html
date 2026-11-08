@@ -27,7 +27,7 @@ button,input,select,textarea{font:inherit;color:var(--ink)}
 button{background:var(--acc);color:var(--onacc);border:0;border-radius:9px;padding:9px 14px;cursor:pointer}
 button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
 button.sm{padding:5px 10px;font-size:.88rem}
-input,select,textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:9px;margin:4px 0}
+input,select,textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:9px;margin:4px 0;font-size:16px;-webkit-user-select:text;user-select:text;touch-action:manipulation}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .row{display:flex;gap:8px;align-items:center}.row>*{flex:1}.row>button{flex:none}
 .bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden}.bar i{display:block;height:100%;background:var(--ok)}
@@ -44,6 +44,7 @@ svg{width:100%;height:auto;display:block}
 .due{color:var(--warn);font-weight:600}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}.chips button{background:var(--card);color:var(--ink);border:1px solid var(--line)}.chips button.on{background:var(--acc);color:var(--onacc)}
 .pre{white-space:pre-wrap;word-break:break-word}
+.item.ok{background:rgba(47,133,90,.22);border-radius:10px;padding:9px 10px;border-bottom:0;margin:3px 0}
 .tag{font-size:.75rem;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--mut)}.tag.sim{background:var(--gold);border-color:var(--gold);color:#fff}
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.stats div{background:var(--bg);border-radius:9px;padding:8px}.stats b{display:block;font-size:1.1rem}
 </style>
@@ -98,7 +99,7 @@ function viewHoy(){
  <div class="card"><div class="row"><div><b>${((S.horas[t]||0)/60).toFixed(1)} h</b> hoy<div class="mut">${(tw/60).toFixed(1)} h esta semana</div></div>
  <button class="sm" onclick="addH(30)">+30 min</button><button class="sm" onclick="addH(60)">+1 h</button><button class="sm ghost" onclick="addH(-30)">−30</button></div>
  <div class="week" style="margin-top:12px">${wk}</div></div>
- ${entHoy(t)}<h2>Repasos pendientes (${due.length})</h2>
+ ${planHoy(t)}${entHoy(t)}<h2>Repasos pendientes (${due.length})</h2>
  <div class="card">${due.length?due.map(x=>`<div class="item"><span class="t">${esc(x.n)}<div class="mut ${x.next<t?'due':''}">${x.next<t?'Retrasado desde el ':'Para hoy · '}${fmt(x.next)}</div></div><button class="sm" onclick="rev('${x.id}')">Repasado</button></div>`).join(''):'<span class="mut">Nada pendiente. Los repasos aparecen al marcar un tema como estudiado.</span>'}</div>
  <h2>Progreso</h2><div class="card"><div class="mut">${done} de ${tot} temas estudiados</div><div class="bar"><i style="width:${tot?done/tot*100:0}%"></i></div></div>`;
 }
@@ -120,11 +121,9 @@ function viewTemario(){
  let h='<h1>Temario</h1>'+escalaBar();const vis=S.bloques.filter(b=>b.sc===S.escala||(!b.sc&&S.temas.some(x=>x.b===b.id)));
  vis.forEach(b=>{const ts=S.temas.filter(x=>x.b===b.id),d=ts.filter(x=>x.e===2).length;
   h+=`<h2>${esc(b.n)}</h2><div class="card"><div class="mut">${d}/${ts.length}</div><div class="bar"><i style="width:${ts.length?d/ts.length*100:0}%"></i></div>`+
-  ts.map(x=>`<div class="item"><span class="t" ondblclick="delTema('${x.id}')">${esc(x.n)}${x.next?`<div class="mut">Próx. repaso ${fmt(x.next)}</div>`:''}</span><button class="sm st s${x.e}" onclick="cycle('${x.id}')">${names[x.e]}</button></div>`).join('')+
+  ts.map(x=>`<div class="item${x.e===2?' ok':''}"><span class="t" ondblclick="delTema('${x.id}')">${esc(x.n)}${x.next?`<div class="mut">Próx. repaso ${fmt(x.next)}</div>`:''}</span><button class="sm ghost" onclick="plan('${x.id}')">${x.plan&&x.e!==2?'Quitar':'+ Hoy'}</button><button class="sm st s${x.e}" onclick="cycle('${x.id}')">${names[x.e]}</button></div>`).join('')+
   (ts.length?'':'<div class="mut">Sin temas todavía.</div>')+'</div>'});
- h+=`<h2>Añadir temas</h2><div class="card"><select id="nb">${vis.map(b=>`<option value="${b.id}">${esc(b.n)}</option>`).join('')}</select>
- <textarea id="nt" rows="4" placeholder="Un tema por línea. Ej.:&#10;Tema 1. La Constitución Española&#10;Tema 2. Derechos fundamentales"></textarea>
- <button onclick="addTemas()">Añadir temas</button><div class="mut" style="margin-top:8px">Toca el estado para cambiarlo. Doble toque en el nombre para borrar un tema.</div></div>`;
+ h+=`<div class="mut" style="margin:12px 0">Toca el estado para cambiarlo y «+ Hoy» para planificar el tema.</div>`;
  return h;
 }
 function viewSims(){
@@ -194,6 +193,9 @@ function viewFis(){
  }
  h+=`<h2>Añadir prueba</h2><div class="card"><input id="pn" placeholder="Nombre (ej. Dominadas)"><div class="row"><select id="pt"><option value="time">Se mide en tiempo</option><option value="rep">Se mide en repeticiones</option></select><input id="po" placeholder="Objetivo (opcional)"></div><button onclick="addPrueba()">Añadir prueba</button></div>`;
  return h}
+function plan(id){const t=S.temas.find(x=>x.id===id);t.plan=(t.plan&&t.e!==2)?null:today();save();render()}
+function planHoy(t){const ps=S.temas.filter(x=>x.plan&&((x.plan<=t&&x.e!==2)||x.plan===t)).sort((a,b)=>(a.e===2)-(b.e===2));
+ return `<h2>Temas planificados (${ps.filter(x=>x.e!==2).length} pendientes)</h2><div class="card">${ps.length?ps.map(x=>`<div class="item${x.e===2?' ok':''}"><span class="t">${esc(x.n)}${x.plan<t&&x.e!==2?`<div class="mut due">Pendiente desde el ${fmt(x.plan)}</div>`:''}</span>${x.e===2?'<span class="mut">Estudiado ✓</span>':`<button class="sm ghost" onclick="plan('${x.id}')">Quitar</button><button class="sm" onclick="cycle('${x.id}')">${x.e===0?'Empezar':'Marcar estudiado'}</button>`}</div>`).join(''):'<span class="mut">Nada planificado. En Temario, pulsa «+ Hoy» en los temas que quieras estudiar hoy.</span>'}</div>`}
 function entHoy(t){const es=S.entr.filter(e=>!e.done&&e.d<=t);
  return `<h2>Entreno pendiente</h2><div class="card">${es.length?es.map(e=>`<div class="item"><span class="t"><b>${esc(e.t)}</b><div class="mut ${e.d<t?'due':''}">${e.d<t?'Atrasado desde el '+fmt(e.d):e.k}</div></span><button class="sm" onclick="tab=4;eo='${e.id}';render()">Abrir</button></div>`).join(''):'<span class="mut">No hay sesión del entrenador pendiente para hoy.</span>'}</div>`}
 function addEntr(){const t=$('#et').value.trim();if(!t){alert('Ponle un título a la sesión');return}
@@ -217,8 +219,23 @@ function viewEntr(){
  h+=`<h2>Historial</h2>`+(hist.map(e=>`<div class="card"><div class="item" style="border:0;padding:0"><span class="t"><b>${esc(e.t)}</b><div class="mut">${fmt(e.d)} · ${e.k}${e.min!=null?' · '+e.min+' min':''}${e.rpe!=null?' · esfuerzo '+e.rpe:''}</div></span><span class="tag sim">Hecha</span></div>${e.c?`<div class="pre mut" style="margin-top:8px">${esc(e.c)}</div>`:''}${e.res?`<div class="pre" style="margin-top:8px"><b>Resultado:</b> ${esc(e.res)}</div>`:''}
   <div class="row" style="margin-top:10px"><button class="sm ghost" onclick="undoEntr('${e.id}')">Reabrir</button><button class="sm ghost" onclick="dupEntr('${e.id}')">Repetir en 7 días</button><button class="sm ghost" onclick="delEntr('${e.id}')">Borrar</button></div></div>`).join('')||'<div class="card mut">Aún no has completado ninguna sesión.</div>');
  return h}
+function makeIcs(){
+ const pad=n=>String(n).padStart(2,'0'),t=today(),hs=S.rh||'18:00',ht=S.rt||'19:00';
+ const dt=(d,h)=>d.replace(/-/g,'')+'T'+h.replace(':','')+'00';
+ const E=x=>String(x).replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n');
+ const end=h=>{const[a,b]=h.split(':').map(Number),m=a*60+b+30;return pad(Math.floor(m/60)%24)+':'+pad(m%60)};
+ const ev=[];
+ const add=(uid,d,h,sum,desc,alarm,extra)=>ev.push(['BEGIN:VEVENT','UID:'+uid+'@agenda-cnp','DTSTAMP:'+t.replace(/-/g,'')+'T000000Z','DTSTART:'+dt(d,h),'DTEND:'+dt(d,end(h)),'SUMMARY:'+E(sum),desc?'DESCRIPTION:'+E(desc):'',extra||'','BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+E(sum),'TRIGGER:'+alarm,'END:VALARM','END:VEVENT'].filter(Boolean).join('\r\n'));
+ add('estudio-diario',t,hs,'Estudiar: abre la Agenda CNP','Repasos y temas planificados de hoy','-PT0M','RRULE:FREQ=DAILY;COUNT=90');
+ S.temas.filter(x=>x.next&&x.next>=t).forEach(x=>add('repaso-'+x.id+'-'+x.step,x.next,hs,'Repaso: '+x.n,'Repaso espaciado','-PT0M'));
+ S.entr.filter(e=>!e.done&&e.d>=t).forEach(e=>add('entreno-'+e.id,e.d,ht,'Entreno: '+e.t,e.c,'-PT15M'));
+ if(S.fecha&&S.fecha>=t)add('examen',S.fecha,'09:00','Examen CNP','','-P1D');
+ const fold=l=>{let o='';while(l.length>74){o+=l.slice(0,74)+'\r\n ';l=l.slice(74)}return o+l};
+ const txt=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Agenda CNP//ES','CALSCALE:GREGORIAN',...ev,'END:VCALENDAR'].join('\r\n').split('\r\n').map(fold).join('\r\n')+'\r\n';
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/calendar'}));a.download='agenda-cnp.ics';document.body.appendChild(a);a.click();a.remove()}
 function viewAjustes(){
  return `<h1>Ajustes</h1><div class="card"><label>Fecha del examen<input id="fx" type="date" value="${S.fecha||''}" onchange="setFecha()"></label></div>
+ <h2>Recordatorios en el calendario</h2><div class="card"><p class="mut" style="margin-top:0">Genera un archivo para el Calendario del iPhone con un aviso diario de estudio, tus repasos, los entrenos pendientes y el examen.</p><div class="row"><label>Estudio<input id="rh" type="time" value="${S.rh||'18:00'}" onchange="S.rh=this.value;save()"></label><label>Entreno<input id="rt" type="time" value="${S.rt||'19:00'}" onchange="S.rt=this.value;save()"></label></div><button onclick="makeIcs()">Descargar recordatorios</button><div class="mut" style="margin-top:8px">Al abrir el archivo, elige un calendario nuevo llamado «Agenda CNP»: así podrás borrarlo entero y volver a importar cuando cambien tus repasos.</div></div>
  <h2>Copia de seguridad</h2><div class="card"><p class="mut" style="margin-top:0">Los datos viven en este dispositivo. Exporta una copia de vez en cuando (por ejemplo cada domingo) y guárdala en iCloud o Drive. La app instalada en la pantalla de inicio guarda sus datos aparte de los de Safari.</p>
  <div class="row"><button onclick="exp('json')">Exportar JSON</button><button class="ghost" onclick="exp('csv')">Exportar Excel (CSV)</button></div>
  <p style="margin-bottom:4px">Importar copia (JSON)</p><input type="file" accept=".json,application/json" onchange="imp(this.files[0])"></div>
