@@ -58,6 +58,7 @@ let tab=0,fp=null;
 try{const r=localStorage.getItem(KEY);if(r)S=Object.assign(S,JSON.parse(r))}catch(e){}
 if(!S.entr)S.entr=[];
 if(!S.sexo)S.sexo='H';
+if(!S.escala)S.escala='ba';
 S.pruebas.forEach(p=>{const m={p1:'ag',p2:'ca',p3:'fu'};if(m[p.id]&&!p.bk)p.bk=m[p.id]});
 {const used=id=>S.fis.some(r=>r.p===id);S.pruebas.forEach(p=>{if(p.id==='p3'&&p.n==='Flexiones'&&!used('p3'))p.n='Dominadas'});S.pruebas=S.pruebas.filter(p=>!(p.id==='p4'&&p.n==='Natación 50 m'&&!used('p4')))}
 let eo=null;
@@ -75,7 +76,7 @@ function cycle(id){const t=S.temas.find(x=>x.id===id);t.e=(t.e+1)%3;
  if(t.e===2){t.step=0;t.next=addDays(today(),IV[0])}else{t.next=null;t.step=0}save();render()}
 function rev(id){const t=S.temas.find(x=>x.id===id);t.step++;t.next=t.step<IV.length?addDays(today(),IV[t.step]):null;save();render()}
 function addH(m){S.horas[today()]=(S.horas[today()]||0)+m;save();render()}
-function addTemas(){const b=$('#nb').value,ls=$('#nt').value.split('\n').map(x=>x.trim()).filter(Boolean);
+function addTemas(){const b=$('#nb').value;if(!b){alert('Carga primero el temario oficial');return}const ls=$('#nt').value.split('\n').map(x=>x.trim()).filter(Boolean);
  ls.forEach(n=>S.temas.push({id:uid(),b,n,e:0,step:0,next:null}));save();render()}
 function delTema(id){if(confirm('¿Borrar este tema?')){S.temas=S.temas.filter(x=>x.id!==id);save();render()}}
 function addSim(){const n=parseFloat($('#sn').value.replace(',','.'));if(isNaN(n)||n<0||n>10){alert('La nota debe estar entre 0 y 10');return}
@@ -86,7 +87,7 @@ function setFecha(){S.fecha=$('#fx').value;save();render()}
 function viewHoy(){
  const t=today(),dias=S.fecha?diff(t,S.fecha):null;
  const due=S.temas.filter(x=>x.next&&x.next<=t).sort((a,b)=>a.next.localeCompare(b.next));
- const done=S.temas.filter(x=>x.e===2).length,tot=S.temas.length;
+ const mine=S.temas.filter(x=>x.id.startsWith(S.escala+'-')||!/^(ba|ej)-/.test(x.id)),done=mine.filter(x=>x.e===2).length,tot=mine.length;
  let wk='';const days=[];for(let i=6;i>=0;i--)days.push(addDays(t,-i));
  const mx=Math.max(60,...days.map(d=>S.horas[d]||0));
  days.forEach(d=>{const m=S.horas[d]||0;wk+=`<div><i style="height:${m/mx*60}px"></i>${new Date(d+'T12:00').toLocaleDateString('es-ES',{weekday:'narrow'})}</div>`});
@@ -101,14 +102,27 @@ function viewHoy(){
  <div class="card">${due.length?due.map(x=>`<div class="item"><span class="t">${esc(x.n)}<div class="mut ${x.next<t?'due':''}">${x.next<t?'Retrasado desde el ':'Para hoy · '}${fmt(x.next)}</div></div><button class="sm" onclick="rev('${x.id}')">Repasado</button></div>`).join(''):'<span class="mut">Nada pendiente. Los repasos aparecen al marcar un tema como estudiado.</span>'}</div>
  <h2>Progreso</h2><div class="card"><div class="mut">${done} de ${tot} temas estudiados</div><div class="bar"><i style="width:${tot?done/tot*100:0}%"></i></div></div>`;
 }
+const TEM={
+ba:[['Ciencias jurídicas',['El Derecho, las normas jurídicas y la persona','La Constitución (I): estructura, valores y derechos fundamentales','La Constitución (II): Corona, Cortes, Gobierno, Poder Judicial, TC y reforma','La Unión Europea y la cooperación policial internacional','La Administración General del Estado y el Gobierno','Los funcionarios públicos','El Ministerio del Interior y la Secretaría de Estado de Seguridad','La Dirección General de la Policía y la Policía Nacional','Ley Orgánica de Fuerzas y Cuerpos de Seguridad','Extranjería: entrada, circulación y residencia','Extranjería: infracciones y sanciones','Protección internacional','Seguridad privada','Ley de protección de la seguridad ciudadana','Infraestructuras críticas y ciberseguridad','Derecho Penal: parte general','Derecho Penal: homicidio, lesiones, libertad y delitos sexuales','Delitos contra el patrimonio y el orden socioeconómico','Delitos contra el orden público','Delitos informáticos y prueba digital','Derecho Procesal Penal: detención, habeas corpus y Policía Judicial','Estatuto de la víctima del delito','Políticas de igualdad y no discriminación','Introducción a la prevención de riesgos laborales','Marco normativo de prevención de riesgos laborales','Protección de datos personales']],
+['Ciencias sociales',['Derechos Humanos','Globalización y antiglobalización','Actitudes y valores sociales','Principios éticos, contravalores y delitos de odio','Inmigración y movimientos migratorios','Geografía humana, demografía y medio ambiente','La seguridad y las teorías de la delincuencia','Drogodependencias','El desarrollo sostenible','Gramática de la lengua española','Ortografía de la lengua española']],
+['Materias técnico-científicas',['Sistemas operativos','Redes informáticas','Inteligencia y fuentes abiertas (OSINT)','Ciberdelincuencia y agentes de amenaza','Armas de fuego y balística forense','El vehículo prioritario','Seguridad activa y pasiva en vehículos prioritarios','Prevención de riesgos laborales en seguridad vial']]],
+ej:[['Ciencias jurídicas',['El ordenamiento jurídico y las fuentes del Derecho','La persona, capacidad y estado civil','Nacionalidad, vecindad civil y domicilio','La Constitución: concepto, estructura y reforma','Derechos fundamentales y libertades públicas; garantías','Los órganos constitucionales','La organización territorial del Estado','La Unión Europea','TEDH, TJUE y Fiscalía Europea','Derecho Administrativo: acto y procedimiento','El Gobierno y la Administración General del Estado','Los empleados públicos','El Ministerio del Interior y la Dirección General de la Policía','Ley Orgánica de Fuerzas y Cuerpos de Seguridad','Extranjería: entrada, circulación y residencia','Extranjería: documentación, infracciones y expulsión','Protección internacional y asilo','Seguridad privada','Ley de seguridad ciudadana','Protección de datos personales','Infraestructuras críticas y ciberseguridad','Derecho Penal: concepto y principios','La ley penal en el tiempo y en el espacio; extradición','Reconocimiento mutuo de resoluciones penales en la UE','El delito y sus elementos','Sujetos, objeto y bien jurídico; acción y omisión','Dolo, error de tipo e imprudencia','Causas de exclusión de la antijuridicidad','Causas de exclusión de la culpabilidad','Circunstancias atenuantes y agravantes','Vida del delito, autoría y participación','Unidad y pluralidad de delitos; concursos','Consecuencias jurídicas: penas, medidas de seguridad y responsabilidad civil','Homicidio, aborto y lesiones','Delitos contra la libertad, odio, torturas y trata','Delitos contra la libertad e indemnidad sexuales','Omisión del deber de socorro; intimidad, honor y relaciones familiares','Delitos contra el patrimonio, Hacienda Pública, trabajadores y extranjeros','Delitos urbanísticos, patrimonio histórico, medio ambiente y seguridad colectiva','Falsedades','Delitos contra la Administración Pública','Delitos contra la Administración de Justicia','Delitos contra la Constitución','Delitos contra el orden público, terrorismo y traición','La potestad jurisdiccional y los órganos penales','El proceso penal: sumario, procedimiento abreviado y habeas corpus','Las partes en el proceso penal','Medidas cautelares personales y detención','La prueba en el proceso penal','Entrada y registro; investigación tecnológica','Estatuto de la víctima del delito','Políticas de igualdad, violencia de género y discapacidad','Prevención de riesgos laborales']],
+['Ciencias sociales',['Pensamiento político y social; valores y actitudes extremas','Derechos Humanos','Bases fisiológicas del comportamiento','La atención','La memoria','El aprendizaje','Teorías del desarrollo','La personalidad','Psicología diferencial','La conducta anormal','Actitudes, estereotipos y percepción social','Grupos y liderazgo','Anomia, desviación, delincuencia y víctima','Comportamientos colectivos y emergencias','Cambios sociales y globalización']],
+['Ciencias técnico-científicas',['Metodología científica','Metodología en ciencias sociales','Estadística','Contabilidad y fiscalidad de la empresa','Redes informáticas','Sistemas operativos','Ciberdelincuencia y agentes de amenaza','Inteligencia, Big Data y Cloud Computing','Seguridad de la información','Documentación del vehículo y del conductor','Procedimiento sancionador de tráfico y accidentes','El vehículo prioritario','Armas de fuego y balística forense']]]};
+function cargarTemario(sc){let num=0;TEM[sc].forEach(([nm,ts],i)=>{const bid=sc+(i+1);if(!S.bloques.some(b=>b.id===bid))S.bloques.push({id:bid,n:nm,sc});
+ ts.forEach(t=>{num++;const id=sc+'-'+num;if(!S.temas.some(x=>x.id===id))S.temas.push({id,b:bid,n:num+'. '+t,e:0,step:0,next:null})})});save();render()}
+function setEscala(x){S.escala=x;save();render()}
+function escalaBar(){const n=S.temas.filter(x=>x.id.startsWith(S.escala+'-')).length,tot=S.escala==='ba'?45:81;
+ return `<div class="chips"><button class="${S.escala==='ba'?'on':''}" onclick="setEscala('ba')">Escala Básica</button><button class="${S.escala==='ej'?'on':''}" onclick="setEscala('ej')">Escala Ejecutiva</button></div>
+ <div class="card">${n>=tot?'Temario oficial cargado ('+tot+' temas).':`<button onclick="cargarTemario('${S.escala}')">${n?'Restaurar':'Cargar'} temario oficial (${tot} temas)</button>`}<div class="mut" style="margin-top:8px">Títulos abreviados del programa de la convocatoria de 2026. El texto completo de cada tema está en el anexo de las bases oficiales.</div></div>`}
 function viewTemario(){
  const names=['Sin empezar','En estudio','Estudiado'];
- let h='<h1>Temario</h1>';
- S.bloques.forEach(b=>{const ts=S.temas.filter(x=>x.b===b.id),d=ts.filter(x=>x.e===2).length;
+ let h='<h1>Temario</h1>'+escalaBar();const vis=S.bloques.filter(b=>b.sc===S.escala||(!b.sc&&S.temas.some(x=>x.b===b.id)));
+ vis.forEach(b=>{const ts=S.temas.filter(x=>x.b===b.id),d=ts.filter(x=>x.e===2).length;
   h+=`<h2>${esc(b.n)}</h2><div class="card"><div class="mut">${d}/${ts.length}</div><div class="bar"><i style="width:${ts.length?d/ts.length*100:0}%"></i></div>`+
   ts.map(x=>`<div class="item"><span class="t" ondblclick="delTema('${x.id}')">${esc(x.n)}${x.next?`<div class="mut">Próx. repaso ${fmt(x.next)}</div>`:''}</span><button class="sm st s${x.e}" onclick="cycle('${x.id}')">${names[x.e]}</button></div>`).join('')+
   (ts.length?'':'<div class="mut">Sin temas todavía.</div>')+'</div>'});
- h+=`<h2>Añadir temas</h2><div class="card"><select id="nb">${S.bloques.map(b=>`<option value="${b.id}">${esc(b.n)}</option>`).join('')}</select>
+ h+=`<h2>Añadir temas</h2><div class="card"><select id="nb">${vis.map(b=>`<option value="${b.id}">${esc(b.n)}</option>`).join('')}</select>
  <textarea id="nt" rows="4" placeholder="Un tema por línea. Ej.:&#10;Tema 1. La Constitución Española&#10;Tema 2. Derechos fundamentales"></textarea>
  <button onclick="addTemas()">Añadir temas</button><div class="mut" style="margin-top:8px">Toca el estado para cambiarlo. Doble toque en el nombre para borrar un tema.</div></div>`;
  return h;
@@ -208,7 +222,7 @@ function viewAjustes(){
  <h2>Copia de seguridad</h2><div class="card"><p class="mut" style="margin-top:0">Los datos viven en este dispositivo. Exporta una copia de vez en cuando (por ejemplo cada domingo) y guárdala en iCloud o Drive. La app instalada en la pantalla de inicio guarda sus datos aparte de los de Safari.</p>
  <div class="row"><button onclick="exp('json')">Exportar JSON</button><button class="ghost" onclick="exp('csv')">Exportar Excel (CSV)</button></div>
  <p style="margin-bottom:4px">Importar copia (JSON)</p><input type="file" accept=".json,application/json" onchange="imp(this.files[0])"></div>
- <div class="card"><button class="ghost" onclick="if(confirm('Se borrarán todos los datos de esta app.')){S={fecha:'',bloques:S.bloques,temas:[],sims:[],horas:{},fis:[],entr:[],pruebas:S.pruebas,sexo:S.sexo};save();render()}">Borrar todos los datos</button></div>`;
+ <div class="card"><button class="ghost" onclick="if(confirm('Se borrarán todos los datos de esta app.')){S={fecha:'',bloques:S.bloques,temas:[],sims:[],horas:{},fis:[],entr:[],pruebas:S.pruebas,sexo:S.sexo,escala:S.escala};save();render()}">Borrar todos los datos</button></div>`;
 }
 function exp(kind){let txt,type,name='agenda-cnp-'+today();
  if(kind==='json'){txt=JSON.stringify(S,null,1);type='application/json';name+='.json'}
