@@ -78,7 +78,7 @@ body.nonav{padding-left:0}body.nonav nav{display:none}body.nonav main{padding-to
 <nav id="nav"></nav>
 <button id="navtog" onclick="toggleNav()" aria-label="Mostrar u ocultar el menú" title="Mostrar u ocultar el menú">☰</button>
 <script>
-const KEY='agendaCNP.v1',DIRTY='agendaCNP.cloudDirty.v1',IV=[1,3,7,15,30],TABS=['Hoy','Temario','Simulacros','Físicas','Entrenos','Calendario','Ajustes'];
+const KEY='agendaCNP.v1',DIRTY='agendaCNP.cloudDirty.v1',IV=[1,3,7,15,30],TABS=['Hoy','Calendario','Temario','Simulacros','Físicas','Entrenos','Ajustes'];
 let S={fecha:'',bloques:[{id:'b1',n:'Ciencias jurídicas'},{id:'b2',n:'Ciencias sociales'},{id:'b3',n:'Técnico-científicas'}],temas:[],sims:[],horas:{},fis:[],pruebas:[{id:'p1',n:'Circuito de agilidad',t:'time',obj:null},{id:'p2',n:'Carrera 1000 m',t:'time',obj:null},{id:'p3',n:'Dominadas',t:'rep',obj:null}],entr:[]};
 let tab=0,fp=null,cloudClient=null,cloudUser=null,cloudBusy=false,syncAfterBusy=false,syncTimer=null,syncState='offline',syncMessage='Sin configurar';
 const SUPABASE_URL='https://jtgdzxnzwfmdbdqhuebv.supabase.co';
@@ -276,7 +276,7 @@ function viewFis(){
  h+=`<h2>Añadir prueba</h2><div class="card"><input id="pn" placeholder="Nombre (ej. Dominadas)"><div class="row"><select id="pt"><option value="time">Se mide en tiempo</option><option value="rep">Se mide en repeticiones</option></select><input id="po" placeholder="Objetivo (opcional)"></div><button onclick="addPrueba()">Añadir prueba</button></div>`;
  return h}
 function entHoy(t){const es=S.entr.filter(e=>!e.done&&e.d<=t);
- return `<h2>Entreno pendiente</h2><div class="card">${es.length?es.map(e=>`<div class="item"><span class="t"><b>${esc(e.t)}</b><div class="mut ${e.d<t?'due':''}">${e.d<t?'Atrasado desde el '+fmt(e.d):e.k}</div></span><button class="sm" onclick="tab=4;eo='${e.id}';render()">Abrir</button></div>`).join(''):'<span class="mut">No hay sesión del entrenador pendiente para hoy.</span>'}</div>`}
+ return `<h2>Entreno pendiente</h2><div class="card">${es.length?es.map(e=>`<div class="item"><span class="t"><b>${esc(e.t)}</b><div class="mut ${e.d<t?'due':''}">${e.d<t?'Atrasado desde el '+fmt(e.d):e.k}</div></span><button class="sm" onclick="tab=5;eo='${e.id}';render()">Abrir</button></div>`).join(''):'<span class="mut">No hay sesión del entrenador pendiente para hoy.</span>'}</div>`}
 function addEntr(){const t=$('#et').value.trim();if(!t){alert('Ponle un título a la sesión');return}
  S.entr.push({id:uid(),d:$('#ed').value||today(),t,k:$('#ek').value,c:$('#ec').value.trim(),done:false,rpe:null,min:null,res:'',ser:mkSer($('#esn').value,$('#eso').value.trim())});save();render()}
 function doneEntr(id){const e=S.entr.find(x=>x.id===id),r=parseFloat($('#ep').value.replace(',','.')),m=parseFloat($('#em').value.replace(',','.'));
@@ -353,39 +353,41 @@ function planForm(id){return `<div class="card pkb" style="margin:6px 0"><div cl
 function psTags(id){const l=S.ps.filter(q=>q.t===id).sort((a,b)=>a.d.localeCompare(b.d));return l.length?`<div style="margin-top:4px">${l.map(q=>`<span class="tag${q.ok?' sim':''}">${fmt(q.d)} · ${PT[q.k]} <a onclick="psDel('${q.id}')" style="cursor:pointer" aria-label="Quitar">✕</a></span>`).join('')}</div>`:''}
 function planHoy(t){const ps=S.ps.filter(q=>tn(q.t)&&((q.d<=t&&!q.ok)||q.d===t)).sort((a,b)=>a.ok-b.ok||a.d.localeCompare(b.d));
  return `<h2>Temas planificados (${ps.filter(q=>!q.ok).length} pendientes)</h2><div class="card">${ps.length?ps.map(q=>`<div class="item${q.ok?' ok':''}"><span class="t"><span class="tag">${PT[q.k]}</span> ${esc(tn(q.t))}${q.d<t&&!q.ok?`<div class="mut due">Pendiente desde el ${fmt(q.d)}</div>`:''}</span>${q.ok?'<span class="mut">Hecho ✓</span>':`<button class="sm ghost" onclick="psDel('${q.id}')">Quitar</button><button class="sm" onclick="psOk('${q.id}')">Hecho</button>`}</div>`).join(''):'<span class="mut">Nada planificado. En Temario o Calendario puedes asignar un tema a un día.</span>'}</div>`}
-let cal={ref:today(),mode:'w',sel:null,pick:null};
+let cal={ref:today(),mode:'w',sel:null,pick:null,add:null};
 function mv(k,id,d){if(!d)return;if(k==='e'){const e=serFind(id);if(e)e.d=d}else{const q=S.ps.find(x=>x.id===id);if(q)q.d=d}cal.pick=null;save();render()}
 function dropOn(ev,d){ev.preventDefault();const[k,id]=(ev.dataTransfer.getData('text/plain')||'').split(':');if(k&&id)mv(k,id,d)}
 function dayClick(d){if(cal.pick)mv(cal.pick.k,cal.pick.id,d);else{cal.sel=cal.sel===d?null:d;render()}}
 function calPick(k,id){cal.pick=cal.pick&&cal.pick.id===id?null:{k,id};render()}
 
 function calNav(n){if(n===0){cal.ref=today();cal.sel=today()}else if(cal.mode==='w')cal.ref=addDays(cal.ref,7*n);else{const x=new Date(cal.ref+'T12:00');x.setDate(1);x.setMonth(x.getMonth()+n);cal.ref=iso(x)}render()}
-function calAddTema(){const id=$('#ct').value;if(!id)return;S.ps.push({id:uid(),t:id,d:cal.sel,k:$('#cpk').value,ok:false});save();render()}
-function calAddEntr(){const t=$('#cet').value.trim();if(!t){alert('Ponle un título al entreno');return}S.entr.push({id:uid(),d:cal.sel,t,k:$('#cek').value,c:'',done:false,rpe:null,min:null,res:'',ser:mkSer($('#cen').value,$('#ceo').value.trim())});save();render()}
+function calAddTema(){const id=$('#ct').value,d=$('#cd').value;if(!id||!d){alert('Elige el tema y el día');return}S.ps.push({id:uid(),t:id,d,k:$('#cpk').value,ok:false});cal.add=null;cal.sel=d;cal.ref=d;save();render()}
+function calAddEntr(){const t=$('#cet').value.trim(),d=$('#cd').value;if(!t||!d){alert('Ponle un título y un día al entreno');return}S.entr.push({id:uid(),d,t,k:$('#cek').value,c:'',done:false,rpe:null,min:null,res:'',ser:mkSer($('#cen').value,$('#ceo').value.trim())});cal.add=null;cal.sel=d;cal.ref=d;save();render()}
 const dayItems=d=>({e:S.entr.filter(x=>x.d===d),t:S.ps.filter(q=>q.d===d&&tn(q.t)),x:S.fecha===d});
 function chip(k,o){const p=cal.pick&&cal.pick.id===o.id,kc=k==='e'?'ev':'tm',dn=k==='e'?o.done:o.ok;
  const ttl=k==='e'?esc(o.t)+(serSum(o)?` <span class="mut">· ${serSum(o)}</span>`:''):`<span class="tag">${PT[o.k]}</span> ${esc(tn(o.t))}`;
- const b=k==='e'?`<button class="sm ghost" onclick="tab=4;eo='${o.id}';render();scrollTo(0,0)">Abrir</button>`:`<button class="sm ghost" onclick="psOk('${o.id}')" aria-label="Hecho">${o.ok?'↺':'✓'}</button><button class="sm ghost" onclick="psDel('${o.id}')" aria-label="Quitar del día">✕</button>`;
+ const b=k==='e'?`<button class="sm ghost" onclick="tab=5;eo='${o.id}';render();scrollTo(0,0)">Abrir</button>`:`<button class="sm ghost" onclick="psOk('${o.id}')" aria-label="Hecho">${o.ok?'↺':'✓'}</button><button class="sm ghost" onclick="psDel('${o.id}')" aria-label="Quitar del día">✕</button>`;
  return `<div class="chip ${kc}${dn?' dn':''}${p?' pk':''}" draggable="true" ondragstart="event.dataTransfer.setData('text/plain','${k}:${o.id}')" onclick="event.stopPropagation()"><span class="t">${ttl}</span>${b}<button class="sm ghost" onclick="calPick('${k}','${o.id}')" aria-label="Mover">${p?'Cancelar':'↔'}</button></div>`}
 function dayCard(d){const it=dayItems(d);
  return `<div class="day${d===today()?' td':''}${cal.sel===d?' sel':''}" ondragover="event.preventDefault()" ondrop="dropOn(event,'${d}')" onclick="dayClick('${d}')"><div class="dh"><b>${esc(cap(wd(d)))}</b>${cal.pick?'<span class="tag sim">Mover aquí</span>':''}</div>${it.x?'<div class="chip ro">Examen CNP</div>':''}${it.e.map(o=>chip('e',o)).join('')}${it.t.map(o=>chip('t',o)).join('')}${it.x||it.e.length||it.t.length?'':'<div class="mut">Libre</div>'}</div>`}
 function monthGrid(){const r=new Date(cal.ref+'T12:00'),st=mon(iso(new Date(r.getFullYear(),r.getMonth(),1))),mo=r.getMonth();
  const dots=(c,n)=>`<i class="d ${c}"></i>`.repeat(Math.min(n,3));
  return `<div class="mg">${['L','M','X','J','V','S','D'].map(x=>`<div class="mh">${x}</div>`).join('')}${Array.from({length:42},(_,i)=>addDays(st,i)).map(d=>{const it=dayItems(d);return `<div class="mc${new Date(d+'T12:00').getMonth()!==mo?' of':''}${d===today()?' td':''}${cal.sel===d?' sel':''}" ondragover="event.preventDefault()" ondrop="dropOn(event,'${d}')" onclick="dayClick('${d}')"><b>${+d.slice(8)}</b><div class="dots">${dots('ev',it.e.length)}${dots('tm',it.t.length)}${it.x?'<i class="d ro"></i>':''}</div></div>`}).join('')}</div>`}
-function addPanel(){const d=cal.sel;if(!d)return '';
- const opts=S.bloques.map(b=>({b,ts:S.temas.filter(x=>x.b===b.id)})).filter(g=>g.ts.length).map(g=>`<optgroup label="${esc(g.b.n+(g.b.sc?' ('+(g.b.sc==='ba'?'Básica':'Ejecutiva')+')':''))}">${g.ts.map(x=>`<option value="${x.id}">${esc(x.n)}</option>`).join('')}</optgroup>`).join('');
- return `<div class="card pkb"><b>${esc(cap(wd(d)))}</b> <span class="mut">· añadir</span><div class="row" style="margin-top:6px"><select id="ct"><option value="">Tema…</option>${opts}</select><select id="cpk">${pkOpts()}</select></div><button class="sm" onclick="calAddTema()">Planificar tema</button>
- <div class="row" style="margin-top:10px"><input id="cet" placeholder="Entreno (ej. Series 6x200 m)"><select id="cek">${KINDS.map(k=>`<option>${k}</option>`).join('')}</select></div><div class="row"><input id="cen" inputmode="numeric" placeholder="Nº series"><input id="ceo" placeholder="Objetivo/serie (ej. &lt; 36 s)"></div><button onclick="calAddEntr()">Añadir entreno</button></div>`}
+function calAdd(k){cal.add=cal.add===k?null:k;render()}
+function addPanel(){if(!cal.add)return '';const d=cal.sel||today();
+ const dt=`<label class="mut">Día<input id="cd" type="date" value="${d}"></label>`;
+ if(cal.add==='t'){const opts=S.bloques.map(b=>({b,ts:S.temas.filter(x=>x.b===b.id)})).filter(g=>g.ts.length).map(g=>`<optgroup label="${esc(g.b.n+(g.b.sc?' ('+(g.b.sc==='ba'?'Básica':'Ejecutiva')+')':''))}">${g.ts.map(x=>`<option value="${x.id}">${esc(x.n)}</option>`).join('')}</optgroup>`).join('');
+  return `<div class="card pkb"><b>Planificar tema</b><select id="ct"><option value="">Tema…</option>${opts}</select><div class="row"><select id="cpk">${pkOpts()}</select>${dt}</div><button onclick="calAddTema()">Añadir al calendario</button></div>`}
+ return `<div class="card pkb"><b>Nuevo entreno</b><div class="row"><input id="cet" placeholder="Título (ej. Series 6x200 m)"><select id="cek">${KINDS.map(k=>`<option>${k}</option>`).join('')}</select></div><div class="row"><input id="cen" inputmode="numeric" placeholder="Nº series"><input id="ceo" placeholder="Objetivo/serie (ej. &lt; 36 s)"></div>${dt}<button onclick="calAddEntr()">Añadir entreno</button></div>`}
 function viewCal(){const w=cal.mode==='w',st=mon(cal.ref),lab=w?fmt(st)+' – '+fmt(addDays(st,6)):cap(new Date(cal.ref+'T12:00').toLocaleDateString('es-ES',{month:'long',year:'numeric'}));
  return `<h1>Calendario</h1><div class="row"><button class="sm ghost" onclick="calNav(-1)" aria-label="Anterior">‹</button><b style="text-align:center">${esc(lab)}</b><button class="sm ghost" onclick="calNav(1)" aria-label="Siguiente">›</button></div>
- <div class="chips" style="margin-top:8px"><button class="${w?'on':''}" onclick="cal.mode='w';render()">Semana</button><button class="${w?'':'on'}" onclick="cal.mode='m';render()">Mes</button><button onclick="calNav(0)">Hoy</button></div>
+ <div class="chips" style="margin-top:8px"><button class="${cal.add==='t'?'on':''}" onclick="calAdd('t')">+ Tema</button><button class="${cal.add==='e'?'on':''}" onclick="calAdd('e')">+ Entreno</button><button class="${w?'on':''}" style="margin-left:auto" onclick="cal.mode='w';render()">Semana</button><button class="${w?'':'on'}" onclick="cal.mode='m';render()">Mes</button><button onclick="calNav(0)">Hoy</button></div>
  ${cal.pick?`<div class="card pkb">Toca el día de destino o arrástralo. <button class="sm ghost" onclick="cal.pick=null;render()">Cancelar</button></div>`:''}${addPanel()}
  ${w?`<div class="wkg">${Array.from({length:7},(_,i)=>dayCard(addDays(st,i))).join('')}</div>`:monthGrid()+dayCard(cal.sel||today())}
- <div class="mut" style="margin-top:10px">Toca un día para añadirle temas o entrenos. Para moverlos: arrástralos a otro día (ordenador) o pulsa ↔ y toca el día de destino (móvil).</div>`}
+ <div class="mut" style="margin-top:10px">Usa «+ Tema» y «+ Entreno» para planificar. Para moverlos: arrástralos a otro día (ordenador) o pulsa ↔ y toca el día de destino (móvil).</div>`}
 function toggleNav(){const h=document.body.classList.toggle('nonav');try{localStorage.setItem('agendaCNP.nonav',h?'1':'0')}catch(e){}}
 try{if(localStorage.getItem('agendaCNP.nonav')==='1')document.body.classList.add('nonav')}catch(e){}
 function render(){migPlan();
- $('#app').innerHTML=cloudChip()+[viewHoy,viewTemario,viewSims,viewFis,viewEntr,viewCal,viewAjustes][tab]();
+ $('#app').innerHTML=cloudChip()+[viewHoy,viewCal,viewTemario,viewSims,viewFis,viewEntr,viewAjustes][tab]();
  renderCloudStatus();
  $('#nav').innerHTML=TABS.map((n,i)=>`<button class="${i===tab?'on':''}" onclick="tab=${i};render();scrollTo(0,0)">${n}</button>`).join('');
 }
