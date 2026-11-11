@@ -54,6 +54,21 @@ svg{width:100%;height:auto;display:block}
 .day{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px;min-height:56px}.day.td{border-color:var(--gold)}.day.sel{box-shadow:0 0 0 2px var(--gold)}.dh{display:flex;justify-content:space-between;margin-bottom:4px}
 .chip{display:flex;gap:8px;align-items:center;border-radius:8px;padding:6px 8px;margin:4px 0;font-size:.92rem;border-left:4px solid var(--gold);background:var(--bg);cursor:grab}.chip.tm{border-left-color:var(--ink)}.chip.ro{border-left-color:var(--warn);cursor:default}.chip.dn{opacity:.55;text-decoration:line-through}.chip.pk{outline:2px solid var(--gold)}.chip .t{flex:1}.chip button{padding:3px 8px}
 .mg{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:10px 0}.mh{text-align:center;font-size:.75rem;color:var(--mut)}.mc{background:var(--card);border:1px solid var(--line);border-radius:8px;min-height:52px;padding:4px;font-size:.8rem}.mc.of{opacity:.45}.mc.td{border-color:var(--gold)}.mc.sel{box-shadow:0 0 0 2px var(--gold)}.dots{display:flex;gap:2px;flex-wrap:wrap;margin-top:4px}.d{width:7px;height:7px;border-radius:50%;background:var(--gold)}.d.tm{background:var(--ink)}.d.ro{background:var(--warn)}.pkb{border-color:var(--gold)}.tag{margin-right:4px}
+.chip{flex-wrap:wrap}.chip .t{flex:1 1 120px;min-width:0;overflow-wrap:anywhere}
+.wkg{display:block}
+@media (min-width:700px){main{max-width:760px}.mc{min-height:72px}}
+@media (min-width:900px){
+body{padding-left:190px}
+main{max-width:1040px;padding:24px 28px 40px}
+nav{top:0;bottom:0;right:auto;width:190px;flex-direction:column;justify-content:flex-start;gap:2px;border-top:0;border-right:1px solid var(--line);padding:20px 0}
+nav button{flex:none;text-align:left;font-size:.95rem;padding:12px 22px}
+nav button.on{box-shadow:inset 3px 0 0 var(--gold)}
+.wkg{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;align-items:start}
+.wkg .day{margin:0;min-height:180px}
+.wkg .chip .t{flex-basis:100%}
+.mc{min-height:96px;padding:6px;font-size:.9rem}.d{width:9px;height:9px}
+.stats{grid-template-columns:repeat(4,1fr)}
+}
 </style>
 </head>
 <body>
@@ -366,7 +381,7 @@ function viewCal(){const w=cal.mode==='w',st=mon(cal.ref),lab=w?fmt(st)+' – '+
  return `<h1>Calendario</h1><div class="row"><button class="sm ghost" onclick="calNav(-1)" aria-label="Anterior">‹</button><b style="text-align:center">${esc(lab)}</b><button class="sm ghost" onclick="calNav(1)" aria-label="Siguiente">›</button></div>
  <div class="chips" style="margin-top:8px"><button class="${w?'on':''}" onclick="cal.mode='w';render()">Semana</button><button class="${w?'':'on'}" onclick="cal.mode='m';render()">Mes</button><button onclick="calNav(0)">Hoy</button></div>
  ${cal.pick?`<div class="card pkb">Toca el día de destino o arrástralo. <button class="sm ghost" onclick="cal.pick=null;render()">Cancelar</button></div>`:''}${addPanel()}
- ${w?Array.from({length:7},(_,i)=>dayCard(addDays(st,i))).join(''):monthGrid()+dayCard(cal.sel||today())}
+ ${w?`<div class="wkg">${Array.from({length:7},(_,i)=>dayCard(addDays(st,i))).join('')}</div>`:monthGrid()+dayCard(cal.sel||today())}
  <div class="mut" style="margin-top:10px">Toca un día para añadirle temas o entrenos. Para moverlos: arrástralos a otro día (ordenador) o pulsa ↔ y toca el día de destino (móvil).</div>`}
 function render(){migPlan();
  $('#app').innerHTML=cloudPanel()+[viewHoy,viewTemario,viewSims,viewFis,viewEntr,viewCal,viewAjustes][tab]();
